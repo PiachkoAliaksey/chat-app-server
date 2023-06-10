@@ -3,9 +3,14 @@ import bcrypt from 'bcrypt';
 import { validationResult } from 'express-validator';
 import userModel from '../userModel.js'
 
-export const signIn = async (req, res) => {
+export const signUp = async (req, res) => {
     try {
+        const{fullName} = req.body;
+        const userCheck = await userModel.findOne({fullName})
         const errors = validationResult(req);
+        if(userCheck){
+            return res.status(400).json({msg:'Username already used'})
+        }
         if (!errors.isEmpty()) {
             return res.status(400).json(errors.array());
         }
@@ -19,7 +24,7 @@ export const signIn = async (req, res) => {
             _id: user._id
         }, 'secretPass', { expiresIn: '30d' });
 
-        const { password, ...userData } = user._doc;
+        const {...userData } = user._doc;
 
         res.json({ ...userData, token })
 
@@ -33,27 +38,23 @@ export const signIn = async (req, res) => {
 
 export const login = async (req, res) => {
     try {
-        const user = await userModel.findOne({ email: req.body.email });
-        if (user._doc.status === 'blocked') {
-            const { status, ...userData } = user._doc;
-            return res.json({ status })
-        }
+        const user = await userModel.findOne({ fullName: req.body.fullName });
         if (!user) {
             return res.status(404).json({
                 message: 'Not found'
             })
         }
-        const isValidPass = await bcrypt.compare(req.body.password, user._doc.password);
-        if (!isValidPass) {
+        const isValidName = req.body.fullName === user._doc.fullName
+        if (!isValidName) {
             return res.status(403).json({
-                message: 'Else login or password'
+                message: 'Else fullName'
             })
         }
         const token = jwt.sign({
             _id: user._id
         }, 'secretPass', { expiresIn: '30d' });
 
-        const { password, ...userData } = user._doc;
+        const {...userData} = user._doc;
 
         res.json({ ...userData, token })
     } catch (err) {
@@ -72,8 +73,8 @@ export const getMe = async (req, res) => {
                 message: 'not found'
             })
         }
-        const { password, ...userData } = user._doc;
-        res.json({ userData })
+        const {...userData } = user._doc;
+        res.json({ ...userData })
     } catch (err) {
         res.status(500).json({
             message: "not access"
@@ -83,57 +84,26 @@ export const getMe = async (req, res) => {
 
 export const getAllUsers = async (req, res) => {
     try {
-        const users = await userModel.find({ _id: { $ne: req } }).select(["FullName", "_id"]);
+        const users = await userModel.find({_id:{$ne:req.params.id}});
         res.json(users)
     } catch (err) {
         res.status(500).json({
-            message: 'wrong'
-        })
-
-    }
-}
-
-export const deleteOne = async (req, res) => {
-    try {
-        const postId = req.params.id;
-        let doc = await userModel.findOneAndDelete({ _id: postId });
-        if (!doc) {
-            return res.status(404).json({
-                message: 'user not found'
-            })
-        }
-        res.json({
-            success: true
-        });
-    } catch (err) {
-        console.log(err);
-        res.status(500).json({
             message: 'wrong request'
         })
+
     }
 }
 
-export const update = async (req, res) => {
+export const getNewUser = async (req, res) => {
     try {
-        const postId = req.params.id;
-        let doc = await userModel.updateOne({ _id: postId }, {
-            status: req.body.status
-        });
-        if (!doc) {
-            return res.status(404).json({
-                message: 'user not found'
-            })
-        }
-        res.json({
-            success: true
-        });
-
+        const users = await userModel.findOne({fullName:req.body.fullName});
+        res.json(users)
     } catch (err) {
-        console.log(err);
         res.status(500).json({
             message: 'wrong request'
         })
 
     }
 }
+
 
