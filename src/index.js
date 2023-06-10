@@ -1,16 +1,16 @@
 import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
-import socket from 'socket.io';
+import {Server} from 'socket.io';
 
 import { registerValidation, loginValidation } from './validations/auth.js';
 import checkAuth from './utils/checkAuth.js';
-import { signIn, login, getMe,getAllUsers,deleteOne , update} from './controllers/userController.js';
+import { signUp, login, getMe,getAllUsers,getNewUser} from './controllers/userController.js';
 import { addMessage,getAllMessage } from './controllers/messageController.js';
 
-const MONGO_URL = 'mongodb+srv://pechkoaleks:kMBCbcWIXBe3MiaJ@datacloud.w2wnoou.mongodb.net/chatApp?retryWrites=true&w=majority';
+
 mongoose
-    .connect(MONGO_URL)
+    .connect(process.env.MONGO_URL)
     .then(() => console.log('DB OK'))
     .catch((error) => console.log('DB error', error));
 
@@ -22,9 +22,10 @@ app.use(express.json());
 
 
 app.post('/auth/login', loginValidation, login);
-app.post('/auth/register', registerValidation, signIn);
+app.post('/auth/signup', registerValidation, signUp);
 app.get('/auth/me', checkAuth, getMe);
-app.get('/auth/allUsers/:id', getAllUsers);
+app.post('/auth/newUser', getNewUser);
+app.get('/allUsers/:id', getAllUsers);
 app.post('/addmsg',addMessage );
 app.post('/getallmsg',getAllMessage );
 
@@ -33,7 +34,7 @@ const server = app.listen(process.env.PORT||4444, () => {
     return console.log('Server OK');
 })
 
-const io = socket(server,{
+const io = new Server(server,{
     cors:{
         origin:"http://localhost:3000",
         credentials:true,
@@ -49,7 +50,7 @@ io.on('connection',(socket)=>{
     socket.on('send-msg',(data)=>{
         const sendUserSocket = onlineUsers.get(data.to);
         if(sendUserSocket){
-            socket.to(sendUserSocket).emit('msg-receive',data.message);
+            socket.to(sendUserSocket).emit('msg-receive',data);
         }
     })
 })
